@@ -4,8 +4,9 @@
 import requests
 import json
 import xml.etree.ElementTree as ET
-from bs4 import BeautifulSoup
 import os
+import re
+from urllib.parse import unquote
 
 # === 設定 ===
 SITEMAP_INDEX_URL = 'https://supercell.com/sitemap.xml'
@@ -37,15 +38,11 @@ def fetch_blog_urls(sitemap_url):
             urls.append(loc)
     return urls
 
-def parse_article_date(url):
-    resp = requests.get(url, headers=HEADERS)
-    resp.raise_for_status()
-    resp.encoding = 'utf-8'
-    soup = BeautifulSoup(resp.text, 'lxml')
-    tag = soup.select_one('div[data-test-id="tagline"]')
-    if tag:
-        return tag.get_text(strip=True)
-    return ''
+def classify_article(url):
+    slug = unquote(url.rstrip('/').split('/')[-1].lower())
+    if re.match(r'^2025-\d{1,2}-', slug):
+        return '活動獎勵'
+    return '公告'
 
 def load_known_articles():
     if os.path.exists(DATA_FILE):
@@ -73,9 +70,9 @@ def main():
     new_articles = []
     for url in all_urls:
         if url not in known_urls:
-            date = parse_article_date(url)
-            print(f'【新文章】{date} - {url}')
-            new_articles.append({'url': url, 'date': date})
+            category = classify_article(url)
+            print(f'【新文章】[{category}] - {url}')
+            new_articles.append({'url': url, 'category': category})
 
     if new_articles:
         print(f'\n共發現 {len(new_articles)} 篇新文章！')
